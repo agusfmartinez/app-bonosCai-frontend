@@ -3,17 +3,12 @@ import PersonasForm from "./components/PersonasForm.jsx";
 import Controls from "./components/Controls.jsx";
 import LogsViewer from "./components/LogsViewer.jsx";
 import LoginBox from "./components/LoginBox.jsx";
+import { cardClass, inputClass, baseButtonClass, loginButtonClass } from "./styles/classes";
 import { fetchWithAuth } from "./lib/api";
 
 import { supabase } from "./lib/supabase";
 import { clearSession } from "./lib/session";
 
-const cardClass =
-  "rounded-xl border border-red-800 bg-red-900/60 p-6 shadow-xl shadow-red-950/30 backdrop-blur";
-const inputClass =
-  "w-full rounded-lg border border-red-700 bg-red-950/60 px-3 py-2 text-sm text-white placeholder-red-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40";
-const baseButtonClass =
-  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
 
 const SECTORES = [
   { value: "52073", label: "PAVONI ALTA" },
@@ -213,8 +208,7 @@ export default function App({ allowed, ready }) {
       : "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
   }`;
 
-  const loginButtonClass = `${baseButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50`;
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-800 via-red-900 to-red-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-10 px-6 py-12 lg:px-10">
@@ -233,7 +227,7 @@ export default function App({ allowed, ready }) {
           </div>
           <div className="ml-auto flex items-center gap-3">
             <button
-              className={`${baseButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50`}
+              className={loginButtonClass}
               onClick={async () => {
                 setIsLogged(false);
                 setRunning(false);
@@ -289,7 +283,7 @@ export default function App({ allowed, ready }) {
               </span>
               {!editMode ? (
                 <button
-                  className={`${baseButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50`}
+                  className={loginButtonClass}
                   onClick={() => setEditMode(true)}
                   disabled={running} // no permitir entrar a edición mientras corre
                 >
@@ -400,3 +394,6 @@ export default function App({ allowed, ready }) {
     </div>
   );
 }
+
+
+

@@ -1,7 +1,6 @@
 import React from 'react'
+import { cardClass, inputClass } from '../styles/classes'
 
-const cardClass = 'rounded-xl border border-red-800 bg-red-900/60 p-6 shadow-xl shadow-red-950/30 backdrop-blur'
-const inputClass = 'w-full rounded-lg border border-red-700 bg-red-950/60 px-3 py-2 text-sm text-white placeholder-black-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40'
 
 export default function PersonasForm({ personas, onChange, disabled }) {
   const update = (idx, field, value) => {
@@ -58,3 +57,4 @@ export default function PersonasForm({ personas, onChange, disabled }) {
     </section>
   )
 }
+

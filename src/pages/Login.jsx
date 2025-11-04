@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { initBackendSession } from '../lib/session'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
+import { pageContainerClass, pageCardNarrowClass, inputClass, baseButtonClass } from '../styles/classes'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -107,15 +108,15 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-red-900">
-      <div className="bg-red-800 p-6 rounded-xl w-[360px]">
+    <div className={pageContainerClass}>
+      <div className={pageCardNarrowClass}>
         <h2 className="text-xl font-bold text-white mb-4">Ingresa</h2>
 
 
         <input
           type="email"
           placeholder="tu@email.com"
-          className="w-full mb-3 p-2 rounded"
+          className={`${inputClass} mb-3`}
           value={email}
           onChange={e=>setEmail(e.target.value)}
         />
@@ -124,20 +125,20 @@ export default function Login() {
           pattern="[0-9]*"
           maxLength={6}
           placeholder="Codigo de 6 digitos"
-          className="w-full mb-3 p-2 rounded"
+          className={`${inputClass} mb-3`}
           value={code}
           onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}
         />
         <button
           disabled={sendingOtp || otpSent}
           onClick={sendCode}
-          className="w-full bg-sky-500 text-white mb-2 py-2 rounded hover:bg-sky-400 disabled:opacity-60"
+          className={`${baseButtonClass} w-full bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-60 mb-2`}
         >
           {sendingOtp ? 'Enviando...' : 'Enviar código'}
         </button>
         <button
           onClick={verifyCode}
-          className="w-full bg-emerald-500 text-white py-2 rounded hover:bg-emerald-400"
+          className={`${baseButtonClass} w-full bg-emerald-500 text-white hover:bg-emerald-400`}
         >
           {verifying ? 'Verificando...' : 'Verificar e ingresar'}
         </button>
@@ -167,3 +168,4 @@ export default function Login() {
     </div>
   )
 }
+

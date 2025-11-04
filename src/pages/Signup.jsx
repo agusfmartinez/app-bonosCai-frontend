@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate, Link } from 'react-router-dom'
+import { pageContainerClass, pageCardNarrowClass, inputClass, baseButtonClass } from '../styles/classes'
 
 export default function Signup() {
   const [email, setEmail] = useState('')
@@ -32,22 +33,22 @@ export default function Signup() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-red-900">
-      <div className="bg-red-800 p-6 rounded-xl w-[360px]">
+    <div className={pageContainerClass}>
+      <div className={pageCardNarrowClass}>
         <h2 className="text-xl font-bold text-white mb-4">Registrate</h2>
 
 
             <input
               type="email"
               placeholder="tu@email.com"
-              className="w-full mb-3 p-2 rounded"
+              className={`${inputClass} mb-3`}
               value={email}
               onChange={e=>setEmail(e.target.value)}
             />
             <button
               disabled={loading}
               onClick={sendCode}
-              className="w-full bg-sky-500 text-white py-2 rounded hover:bg-sky-400"
+              className={`${baseButtonClass} w-full bg-sky-500 text-white hover:bg-sky-400`}
             >
               Enviar código
             </button>
@@ -65,3 +66,4 @@ export default function Signup() {
     </div>
   )
 }
+

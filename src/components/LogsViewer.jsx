@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
+import { cardClass } from '../styles/classes'
 
-const cardClass = 'rounded-xl border border-red-800 bg-red-900/60 p-6 shadow-xl shadow-red-950/30 backdrop-blur'
 const dotColorByLevel = { success: 'bg-emerald-400', info: 'bg-sky-400', warning: 'bg-amber-400', error: 'bg-rose-500' }
 const badgeByLevel = {
   success: 'bg-emerald-500/15 text-emerald-200',
@@ -64,3 +64,5 @@ export default function LogsViewer({ logs, onClear  }) {
     </section>
   )
 }
+
+
