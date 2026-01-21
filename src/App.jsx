@@ -16,6 +16,33 @@ const SECTORES = [
   { value: "52107", label: "SANTORO BAJA" },
 ];
 
+const EMPTY_CONFIG = {
+  url: "",
+  sector: "",
+  sectorName: "",
+  cantidad: 1,
+  horaHabilitacion: "",
+  personas: [{ socio: "", dni: "" }],
+};
+
+const normalizeConfig = (cfg) => {
+  if (!cfg) return null;
+  const validValues = new Set(SECTORES.map((s) => s.value));
+  const sector = validValues.has(cfg.sector) ? cfg.sector : "";
+  const found = SECTORES.find((s) => s.value === sector);
+
+  return {
+    url: cfg.url || "",
+    sector,
+    sectorName: found ? found.label : "",
+    cantidad: Number(cfg.cantidad) || 1,
+    horaHabilitacion: cfg.horaHabilitacion || "",
+    personas: Array.isArray(cfg.personas) && cfg.personas.length
+      ? cfg.personas
+      : [{ socio: "", dni: "" }],
+  };
+};
+
 export default function App({ allowed, ready }) {
   const [isLogged, setIsLogged] = useState(false);
   const [running, setRunning] = useState(false);
@@ -25,28 +52,65 @@ export default function App({ allowed, ready }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [config, setConfig] = useState(() => {
-    // carga desde localStorage si existe
-    const saved = localStorage.getItem("bonosConfig");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      const validValues = new Set(SECTORES.map((s) => s.value));
-      if (!validValues.has(parsed.sector)) {
-        parsed.sector = SECTORES[0].value; // '52073'
+  const [config, setConfig] = useState(() => EMPTY_CONFIG);
+  // const [config, setConfig] = useState(() => {
+  //   // carga desde localStorage si existe
+  //   const saved = localStorage.getItem("bonosConfig");
+  //   if (saved) {
+  //     const parsed = JSON.parse(saved);
+  //     const validValues = new Set(SECTORES.map((s) => s.value));
+  //     if (!validValues.has(parsed.sector)) {
+  //       parsed.sector = SECTORES[0].value; // '52073'
+  //     }
+  //     const found = SECTORES.find(s => s.value === parsed.sector);
+  //     parsed.sectorName = found ? found.label : '';
+  //     return parsed;
+  //   }
+  //   return {
+  //     url: "https://cai.boleteriavip.com.ar/event/description/1056",
+  //     sector: SECTORES[0].value, // '52073'
+  //     sectorName: SECTORES[0].label,
+  //     cantidad: 1,
+  //     horaHabilitacion: "18:00:00",
+  //     personas: [{ socio: "", dni: "" }],
+  //   };
+  // });
+
+  // Carga inicial
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConfig = async () => {
+      try {
+        const saved = localStorage.getItem("bonosConfig");
+        if (saved) {
+          console.log("bonosConfig desde localStorage", saved)
+          const parsed = normalizeConfig(JSON.parse(saved));
+          if (parsed && !cancelled) setConfig(parsed);
+          return;
+        }
+
+        const res = await fetchWithAuth("/api/user/config");
+        if (!res.ok) return;
+        const data = await res.json();
+        console.log("bonosConfig desde Supabase", data)
+
+        if (data?.last_config) {
+          const parsed = normalizeConfig(data.last_config);
+          if (parsed && !cancelled) {
+            setConfig(parsed);
+            localStorage.setItem("bonosConfig", JSON.stringify(parsed));
+          }
+        }
+      } catch {
+        // silencioso
       }
-      const found = SECTORES.find(s => s.value === parsed.sector);
-      parsed.sectorName = found ? found.label : '';
-      return parsed;
-    }
-    return {
-      url: "https://cai.boleteriavip.com.ar/event/description/1056",
-      sector: SECTORES[0].value, // '52073'
-      sectorName: SECTORES[0].label,
-      cantidad: 1,
-      horaHabilitacion: "18:00:00",
-      personas: [{ socio: "", dni: "" }],
     };
-  });
+
+    loadConfig();
+    return () => { cancelled = true; };
+  }, []);
+
 
   // SSE (cuando armes el backend)
   const sseRef = useRef(null);
@@ -105,10 +169,33 @@ export default function App({ allowed, ready }) {
   // }, [allowed, ready])
 
   // guardar config al salir de edición
-  const guardarConfig = () => {
-    localStorage.setItem("bonosConfig", JSON.stringify(config));
-    setEditMode(false);
+  // const guardarConfig = () => {
+  //   localStorage.setItem("bonosConfig", JSON.stringify(config));
+  //   setEditMode(false);
+  // };
+  const guardarConfig = async () => {
+    try {
+      const res = await fetchWithAuth("/api/user/config", {
+        method: "POST",
+        body: JSON.stringify({ lastConfig: config }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("saveConfig error:", res.status, err);
+        return;
+      }
+
+      localStorage.setItem("bonosConfig", JSON.stringify(config));
+      setEditMode(false);
+    } catch {
+      setLogs((prev) => [
+        ...prev,
+        { level: "error", message: "No se pudo guardar la configuracion." },
+      ]);
+    }
   };
+
 
   const handleLogin = async () => {
     setLogs((prev) => [
@@ -332,6 +419,9 @@ export default function App({ allowed, ready }) {
                 }}
                 disabled={!editMode || running}
               >
+                <option value="" disabled>
+                  Seleccionar sector
+                </option>
                 {SECTORES.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
