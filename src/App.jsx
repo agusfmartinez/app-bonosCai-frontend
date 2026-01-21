@@ -254,7 +254,11 @@ export default function App({ allowed, ready }) {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Fallo al iniciar");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("run error:", res.status, err);
+        throw new Error(err?.msg || "Fallo al iniciar");
+      }
       setRunning(false);
       if (sseRef.current) sseRef.current.close();
       // progreso por SSE
