@@ -21,7 +21,7 @@ function pickSessionDate(session) {
 }
 
 function formatDate(value) {
-  if (!value) return "Sin sesion";
+  if (!value) return "Sin sesión";
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return String(value);
   return dt.toLocaleString("es-AR");
@@ -63,6 +63,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState({});
   const navigate = useNavigate();
 
@@ -98,21 +99,19 @@ export default function Admin() {
       ]);
 
       const usersParsed = await parseApiResponse(usersRes);
-      if (await handleAuthStatus(usersParsed.status)) {
-        setLoading(false);
-        return;
-      }
+      if (await handleAuthStatus(usersParsed.status)) return;
       if (!usersParsed.ok) {
-        throw new Error(`Usuarios: ${usersParsed.status}`);
+        throw new Error(
+          usersParsed.data?.msg || `Usuarios: ${usersParsed.status}`
+        );
       }
 
       const sessionsParsed = await parseApiResponse(sessionsRes);
-      if (await handleAuthStatus(sessionsParsed.status)) {
-        setLoading(false);
-        return;
-      }
+      if (await handleAuthStatus(sessionsParsed.status)) return;
       if (!sessionsParsed.ok) {
-        throw new Error(`Sesiones: ${sessionsParsed.status}`);
+        throw new Error(
+          sessionsParsed.data?.msg || `Sesiones: ${sessionsParsed.status}`
+        );
       }
 
       setUsers(
@@ -166,6 +165,7 @@ export default function Admin() {
     const key = `${userId}-whitelist`;
     setActionBusy(key, true);
     setNotice("");
+    setActionError("");
     try {
       const res = await fetchWithAuth(`/api/admin/users/${userId}/whitelist`, {
         method: "PATCH",
@@ -173,11 +173,13 @@ export default function Admin() {
       });
       const parsed = await parseApiResponse(res);
       if (await handleAuthStatus(parsed.status)) return;
-      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
+      if (!parsed.ok) {
+        throw new Error(parsed.data?.msg || `HTTP ${parsed.status}`);
+      }
       updateUserLocal(userId, { is_whitelisted: next });
       setNotice(`Whitelist ${next ? "aprobada" : "desaprobada"}.`);
     } catch (err) {
-      setNotice(
+      setActionError(
         `No se pudo actualizar whitelist: ${err?.message || "error desconocido"}`
       );
     } finally {
@@ -192,6 +194,7 @@ export default function Admin() {
     const key = `${userId}-status`;
     setActionBusy(key, true);
     setNotice("");
+    setActionError("");
     try {
       const res = await fetchWithAuth(`/api/admin/users/${userId}/status`, {
         method: "PATCH",
@@ -199,11 +202,16 @@ export default function Admin() {
       });
       const parsed = await parseApiResponse(res);
       if (await handleAuthStatus(parsed.status)) return;
-      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
+      if (!parsed.ok) {
+        throw new Error(parsed.data?.msg || `HTTP ${parsed.status}`);
+      }
       updateUserLocal(userId, { status: next });
+      if (next === "blocked") {
+        clearUserSessions(userId);
+      }
       setNotice(`Estado actualizado a ${next}.`);
     } catch (err) {
-      setNotice(
+      setActionError(
         `No se pudo actualizar estado: ${err?.message || "error desconocido"}`
       );
     } finally {
@@ -218,6 +226,7 @@ export default function Admin() {
     const key = `${userId}-role`;
     setActionBusy(key, true);
     setNotice("");
+    setActionError("");
     try {
       const res = await fetchWithAuth(`/api/admin/users/${userId}/role`, {
         method: "PATCH",
@@ -225,11 +234,13 @@ export default function Admin() {
       });
       const parsed = await parseApiResponse(res);
       if (await handleAuthStatus(parsed.status)) return;
-      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
+      if (!parsed.ok) {
+        throw new Error(parsed.data?.msg || `HTTP ${parsed.status}`);
+      }
       updateUserLocal(userId, { role: next });
       setNotice(`Rol actualizado a ${next}.`);
     } catch (err) {
-      setNotice(
+      setActionError(
         `No se pudo actualizar rol: ${err?.message || "error desconocido"}`
       );
     } finally {
@@ -243,17 +254,20 @@ export default function Admin() {
     const key = `${userId}-session`;
     setActionBusy(key, true);
     setNotice("");
+    setActionError("");
     try {
       const res = await fetchWithAuth(`/api/admin/sessions/${userId}`, {
         method: "DELETE",
       });
       const parsed = await parseApiResponse(res);
       if (await handleAuthStatus(parsed.status)) return;
-      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
+      if (!parsed.ok) {
+        throw new Error(parsed.data?.msg || `HTTP ${parsed.status}`);
+      }
       clearUserSessions(userId);
-      setNotice("Sesion cerrada.");
+      setNotice("Sesión cerrada.");
     } catch (err) {
-      setNotice(
+      setActionError(
         `No se pudo cerrar sesión: ${err?.message || "error desconocido"}`
       );
     } finally {
@@ -273,7 +287,7 @@ export default function Admin() {
               Panel Admin
             </h1>
             <p className="text-sm text-white/80">
-              Administra usuarios, roles y sesiones.
+              Administrá usuarios, roles y sesiones.
             </p>
           </div>
           <div className="ml-auto">
@@ -284,7 +298,7 @@ export default function Admin() {
                 navigate("/login", { replace: true });
               }}
             >
-              Cerrar sesion
+              Cerrar sesión
             </button>
           </div>
         </header>
@@ -294,6 +308,13 @@ export default function Admin() {
             className={`${cardClass} border border-sky-400/30 bg-sky-500/10 text-sm`}
           >
             {notice}
+          </div>
+        )}
+        {actionError && (
+          <div
+            className={`${cardClass} border border-rose-400/30 bg-rose-500/10 text-sm text-rose-100`}
+          >
+            {actionError}
           </div>
         )}
 
