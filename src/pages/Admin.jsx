@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchWithAuth } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+import { fetchWithAuth, parseApiResponse } from "../lib/api";
 import { cardClass, baseButtonClass } from "../styles/classes";
+import { forceLogout } from "../lib/session";
 
 const badgeBase =
   "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide";
@@ -9,11 +11,17 @@ const actionButtonClass = `${baseButtonClass} px-3 py-1 text-xs`;
 
 function pickSessionDate(session) {
   if (!session) return null;
-  return session.updated_at || session.last_signed_in || session.lastSignedIn || null;
+  return (
+    session.updated_at ||
+    session.last_signed_in ||
+    session.lastSignedIn ||
+    session.created_at ||
+    null
+  );
 }
 
 function formatDate(value) {
-  if (!value) return "Sin sesión";
+  if (!value) return "Sin sesion";
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return String(value);
   return dt.toLocaleString("es-AR");
@@ -56,6 +64,7 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [actionLoading, setActionLoading] = useState({});
+  const navigate = useNavigate();
 
   const mergedUsers = useMemo(
     () => mergeUsersWithSessions(users, sessions),
@@ -64,6 +73,19 @@ export default function Admin() {
 
   const setActionBusy = (key, value) => {
     setActionLoading((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleAuthStatus = async (status) => {
+    if (status === 401) {
+      await forceLogout();
+      navigate("/login", { replace: true });
+      return true;
+    }
+    if (status === 403) {
+      navigate("/forbidden", { replace: true });
+      return true;
+    }
+    return false;
   };
 
   const loadData = async () => {
@@ -75,19 +97,33 @@ export default function Admin() {
         fetchWithAuth("/api/admin/sessions"),
       ]);
 
-      if (!usersRes.ok) {
-        throw new Error(`Usuarios: ${usersRes.status}`);
+      const usersParsed = await parseApiResponse(usersRes);
+      if (await handleAuthStatus(usersParsed.status)) {
+        setLoading(false);
+        return;
       }
-      if (!sessionsRes.ok) {
-        throw new Error(`Sesiones: ${sessionsRes.status}`);
+      if (!usersParsed.ok) {
+        throw new Error(`Usuarios: ${usersParsed.status}`);
       }
 
-      const usersData = await usersRes.json();
-      const sessionsData = await sessionsRes.json();
+      const sessionsParsed = await parseApiResponse(sessionsRes);
+      if (await handleAuthStatus(sessionsParsed.status)) {
+        setLoading(false);
+        return;
+      }
+      if (!sessionsParsed.ok) {
+        throw new Error(`Sesiones: ${sessionsParsed.status}`);
+      }
 
-      setUsers(Array.isArray(usersData) ? usersData : usersData?.users || []);
+      setUsers(
+        Array.isArray(usersParsed.data)
+          ? usersParsed.data
+          : usersParsed.data?.users || []
+      );
       setSessions(
-        Array.isArray(sessionsData) ? sessionsData : sessionsData?.sessions || []
+        Array.isArray(sessionsParsed.data)
+          ? sessionsParsed.data
+          : sessionsParsed.data?.sessions || []
       );
     } catch (err) {
       setError(
@@ -135,7 +171,9 @@ export default function Admin() {
         method: "PATCH",
         body: JSON.stringify({ is_whitelisted: next }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = await parseApiResponse(res);
+      if (await handleAuthStatus(parsed.status)) return;
+      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
       updateUserLocal(userId, { is_whitelisted: next });
       setNotice(`Whitelist ${next ? "aprobada" : "desaprobada"}.`);
     } catch (err) {
@@ -159,7 +197,9 @@ export default function Admin() {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = await parseApiResponse(res);
+      if (await handleAuthStatus(parsed.status)) return;
+      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
       updateUserLocal(userId, { status: next });
       setNotice(`Estado actualizado a ${next}.`);
     } catch (err) {
@@ -183,7 +223,9 @@ export default function Admin() {
         method: "PATCH",
         body: JSON.stringify({ role: next }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = await parseApiResponse(res);
+      if (await handleAuthStatus(parsed.status)) return;
+      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
       updateUserLocal(userId, { role: next });
       setNotice(`Rol actualizado a ${next}.`);
     } catch (err) {
@@ -205,9 +247,11 @@ export default function Admin() {
       const res = await fetchWithAuth(`/api/admin/sessions/${userId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const parsed = await parseApiResponse(res);
+      if (await handleAuthStatus(parsed.status)) return;
+      if (!parsed.ok) throw new Error(`HTTP ${parsed.status}`);
       clearUserSessions(userId);
-      setNotice("Sesión cerrada.");
+      setNotice("Sesion cerrada.");
     } catch (err) {
       setNotice(
         `No se pudo cerrar sesión: ${err?.message || "error desconocido"}`
@@ -220,16 +264,29 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-800 via-red-900 to-red-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-12 lg:px-10">
-        <header className="space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.4em] text-black-400">
-            Bonos CAI
-          </span>
-          <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-            Panel Admin
-          </h1>
-          <p className="text-sm text-white/80">
-            Administrá usuarios, roles y sesiones.
-          </p>
+        <header className="flex flex-wrap items-center gap-4">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.4em] text-black-400">
+              Bonos CAI
+            </span>
+            <h1 className="text-3xl font-semibold text-white sm:text-4xl">
+              Panel Admin
+            </h1>
+            <p className="text-sm text-white/80">
+              Administra usuarios, roles y sesiones.
+            </p>
+          </div>
+          <div className="ml-auto">
+            <button
+              className={`${actionButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200`}
+              onClick={async () => {
+                await forceLogout();
+                navigate("/login", { replace: true });
+              }}
+            >
+              Cerrar sesion
+            </button>
+          </div>
         </header>
 
         {notice && (

@@ -35,7 +35,7 @@ function useAuthGate() {
 
       storeToken(session.access_token);
       setAllowed(true);
-      if (location.pathname === "/login" || location.pathname === "/pending") {
+      if (location.pathname === "/login" || location.pathname === "/signup") {
         navigate("/admin", { replace: true });
       }
     });
