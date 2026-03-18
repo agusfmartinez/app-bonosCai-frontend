@@ -10,10 +10,10 @@ import {
 import "./styles/index.css";
 import { supabase } from "./lib/supabase";
 import { initBackendSession, clearSession } from "./lib/session";
-import App from "./App.jsx";
 import Login from "./pages/Login.jsx";
 import Pending from "./pages/Pending.jsx";
 import Signup from "./pages/Signup.jsx";
+import Admin from "./pages/Admin.jsx";
 
 const PUBLIC_ROUTES = ["/login", "/signup", "/pending"];
 
@@ -96,7 +96,7 @@ useEffect(() => {
         setAllowed(true)
         subscribeUserSession(session.user.id)
         if (location.pathname === '/login' || location.pathname === '/pending') {
-          navigate('/', { replace: true })
+          navigate('/admin', { replace: true })
         }
         return
       }
@@ -110,7 +110,7 @@ useEffect(() => {
       setAllowed(true)
       subscribeUserSession(session.user.id)
       if (location.pathname === '/login' || location.pathname === '/pending') {
-        navigate('/', { replace: true })
+        navigate('/admin', { replace: true })
       }
     }
 
@@ -154,12 +154,12 @@ function Root() {
       <Route
         path="/"
         element={
-          allowed ? (
-            <App allowed={allowed} ready={ready} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
+          allowed ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />
         }
+      />
+      <Route
+        path="/admin"
+        element={allowed ? <Admin /> : <Navigate to="/login" replace />}
       />
     </Routes>
   );

@@ -98,7 +98,7 @@ export default function Login() {
       sessionStorage.removeItem('pendingEmail')
       sessionStorage.removeItem('otpSent')
 
-      navigate('/')
+      navigate('/admin')
     } catch (err) {
       setMsg('Fallo inicio de sesion unica: ' + err.message)
       await supabase.auth.signOut()
