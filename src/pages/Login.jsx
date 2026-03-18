@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { initBackendSession } from '../lib/session'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { pageContainerClass, pageCardNarrowClass, inputClass, baseButtonClass } from '../styles/classes'
+
+const RECENT_EMAILS_KEY = 'bp_recent_emails'
+const MAX_RECENT_EMAILS = 6
 export default function Login() {
   const [email, setEmail] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -10,6 +12,7 @@ export default function Login() {
   const [sendingOtp, setSendingOtp] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [msg, setMsg] = useState('')
+  const [recentEmails, setRecentEmails] = useState([])
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -18,14 +21,40 @@ export default function Login() {
     if (st?.email) {
       setEmail(st.email)
       if (st.otpSent) setOtpSent(true)
-      return
     }
-
-    const pendingEmail = sessionStorage.getItem('pendingEmail') || ''
-    if (pendingEmail) setEmail(pendingEmail)
-    if (sessionStorage.getItem('otpSent') === '1') setOtpSent(true)
   }, [location.state])
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_EMAILS_KEY)
+      const list = raw ? JSON.parse(raw) : []
+      if (Array.isArray(list)) setRecentEmails(list)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const storeRecentEmail = (value) => {
+    const emailClean = String(value || '').trim().toLowerCase()
+    if (!emailClean) return
+    const current = Array.isArray(recentEmails) ? recentEmails : []
+    const next = [emailClean, ...current.filter((e) => e !== emailClean)].slice(0, MAX_RECENT_EMAILS)
+    setRecentEmails(next)
+    try {
+      localStorage.setItem(RECENT_EMAILS_KEY, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+  }
+
+  const clearRecentEmails = () => {
+    setRecentEmails([])
+    try {
+      localStorage.removeItem(RECENT_EMAILS_KEY)
+    } catch {
+      // ignore
+    }
+  }
 
   function mapOtpError(err) {
     const status = err?.status
@@ -60,6 +89,7 @@ export default function Login() {
           return
         }
         setOtpSent(true)
+        storeRecentEmail(emailClean)
         setMsg('Te enviamos un codigo al mail.')
     } catch (error) {
         setMsg('Error de red. Intentá de nuevo.')
@@ -77,31 +107,8 @@ export default function Login() {
     const { error } = await supabase.auth.verifyOtp({ email: emailClean, token: code, type: 'email' })
     if (error) { setVerifying(false); return setMsg(error.message) }
 
-    const { data: sess } = await supabase.auth.getSession()
-    const accessToken = sess?.session?.access_token
-    if (!accessToken) { setVerifying(false); return setMsg('No se obtuvo token') }
-
     try {
-      const result = await initBackendSession({ accessToken })
-      if (!result.ok) {
-        if (result.reason === 'forbidden') {
-          setMsg('Tu cuenta aun no esta habilitada.')
-          await supabase.auth.signOut()
-          navigate('/pending', { replace: true })
-        } else {
-          const detail = typeof result.detail === 'string' && result.detail ? ': ' + result.detail : ''
-          setMsg('Fallo inicio de sesion unica' + detail)
-          await supabase.auth.signOut()
-        }
-        return
-      }
-      sessionStorage.removeItem('pendingEmail')
-      sessionStorage.removeItem('otpSent')
-
-      navigate('/admin')
-    } catch (err) {
-      setMsg('Fallo inicio de sesion unica: ' + err.message)
-      await supabase.auth.signOut()
+      storeRecentEmail(emailClean)
     } finally {
       setVerifying(false)
     }
@@ -115,11 +122,28 @@ export default function Login() {
 
         <input
           type="email"
+          name="email"
+          autoComplete="email"
+          list="recent-emails"
           placeholder="tu@email.com"
-          className={`${inputClass} mb-3`}
+          className={`${inputClass}`}
           value={email}
           onChange={e=>setEmail(e.target.value)}
         />
+        <datalist id="recent-emails">
+          {recentEmails.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
+        {recentEmails.length > 0 && (
+          <button
+            type="button"
+            className="text-xs text-red-200 underline hover:text-white"
+            onClick={clearRecentEmails}
+          >
+            Borrar emails recientes
+          </button>
+        )}
         <input
           inputMode="numeric"
           pattern="[0-9]*"
@@ -155,7 +179,7 @@ export default function Login() {
           <button
             type="button"
             className="underline text-sky-300 hover:text-sky-200"
-            onClick={() => { setOtpSent(false); setCode(''); setMsg(''); sessionStorage.removeItem('otpSent')}}
+            onClick={() => { setOtpSent(false); setCode(''); setMsg('');}}
           >
             Reenviar
           </button>

@@ -9,12 +9,11 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
-  const [otpSent, setOtpSent] = useState(false)
 
   async function sendCode() {
     const emailClean = email.trim().toLowerCase()
     if (!emailClean) {
-      setMsg('Ingresá tu email.')
+      setMsg('Ingresa tu email.')
       return
     }
     setLoading(true); setMsg('')
@@ -24,11 +23,8 @@ export default function Signup() {
     })
     setLoading(false)
     if (error) return setMsg(error.message)
-    setMsg('Te enviamos un código al mail. Espera aprobación del administrador.')
-    sessionStorage.setItem('pendingEmail', emailClean)
-    sessionStorage.setItem('otpSent', '1')
-    setOtpSent(true)
-    navigate('/pending', { state: { email:emailClean, otpSent: true } })
+    setMsg('Te enviamos un codigo al mail. Revisa tu casilla para continuar.')
+    navigate('/login', { state: { email: emailClean, otpSent: true } })
   }
 
 
@@ -50,7 +46,7 @@ export default function Signup() {
               onClick={sendCode}
               className={`${baseButtonClass} w-full bg-sky-500 text-white hover:bg-sky-400`}
             >
-              Enviar código
+              Enviar codigo
             </button>
 
             <p className="text-sm text-white mt-4 text-center">
@@ -60,10 +56,8 @@ export default function Signup() {
             </p>
 
 
-        
         {msg && <p className="text-sm text-white mt-3">{msg}</p>}
       </div>
     </div>
   )
 }
-
