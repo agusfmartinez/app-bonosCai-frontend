@@ -12,6 +12,9 @@ export const focusClass =
 export const baseButtonClass =
   `inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${focusClass}`
 
+export const iconButtonClass =
+  `inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm font-semibold transition ${focusClass}`
+
 // Common button variants
 export const loginButtonClass =
   `${baseButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:cursor-not-allowed disabled:opacity-50`

@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth, parseApiResponse } from "../lib/api";
-import { cardClass, baseButtonClass } from "../styles/classes";
+import { cardClass, baseButtonClass, iconButtonClass } from "../styles/classes";
 import { forceLogout } from "../lib/session";
 
 const badgeBase =
   "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide";
-
-const actionButtonClass = `${baseButtonClass} px-3 py-1 text-xs`;
 
 function pickSessionDate(session) {
   if (!session) return null;
@@ -69,6 +67,7 @@ export default function Admin() {
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState({});
   const [runs, setRuns] = useState([]);
+  const [expandedUsers, setExpandedUsers] = useState({});
 
   const navigate = useNavigate();
 
@@ -304,12 +303,41 @@ export default function Admin() {
     return map;
   }, [users]);
 
-  const recentRuns = useMemo(() => {
-    return runs.map((run) => ({
-      ...run,
-      _email: userEmailMap.get(run.user_id) || run.user_id,
-    }));
+  const groupedRuns = useMemo(() => {
+    const map = new Map();
+    runs.forEach((run) => {
+      const userId = run?.user_id || run?.userId || run?.id;
+      if (!userId) return;
+      const list = map.get(userId) || [];
+      list.push({
+        ...run,
+        _email: userEmailMap.get(userId) || userId,
+      });
+      map.set(userId, list);
+    });
+
+    return Array.from(map.entries()).map(([userId, list]) => {
+      const sorted = [...list].sort((a, b) => {
+        const aTime = new Date(a.start_time || a.created_at || 0).getTime();
+        const bTime = new Date(b.start_time || b.created_at || 0).getTime();
+        return bTime - aTime;
+      });
+      return {
+        userId,
+        email: sorted[0]?._email || userId,
+        primary: sorted[0],
+        rest: sorted.slice(1),
+        total: sorted.length,
+      };
+    });
   }, [runs, userEmailMap]);
+
+  const toggleUserRuns = (userId) => {
+    setExpandedUsers((prev) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-800 via-red-900 to-red-950 text-white">
@@ -326,9 +354,33 @@ export default function Admin() {
               Administrá usuarios, roles y sesiones.
             </p>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
             <button
-              className={`${actionButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200`}
+              className={`${baseButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200`}
+              onClick={loadData}
+              disabled={loading}
+            >
+              <span className="inline-flex items-center gap-2">
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10" />
+                  <path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14" />
+                </svg>
+                {loading ? "Actualizando..." : "Refrescar"}
+              </span>
+            </button>
+            <button
+              className={`${baseButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200`}
               onClick={async () => {
                 await forceLogout();
                 navigate("/login", { replace: true });
@@ -364,15 +416,6 @@ export default function Admin() {
                 Estado de whitelist, roles y sesiones activas.
               </p>
             </div>
-            <div className="ml-auto">
-              <button
-                className={`${actionButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200`}
-                onClick={loadData}
-                disabled={loading}
-              >
-                {loading ? "Actualizando..." : "Refrescar"}
-              </button>
-            </div>
           </div>
 
           {loading && (
@@ -395,11 +438,11 @@ export default function Admin() {
                 <thead className="text-xs uppercase tracking-wide text-white/70">
                   <tr className="border-b border-red-800/70">
                     <th className="px-3 py-3">Email</th>
-                    <th className="px-3 py-3">Whitelist</th>
-                    <th className="px-3 py-3">Role</th>
-                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3 text-center">Whitelist</th>
+                    <th className="px-3 py-3 text-center">Role</th>
+                    <th className="px-3 py-3 text-center">Status</th>
                     <th className="px-3 py-3">Última sesión</th>
-                    <th className="px-3 py-3 text-right">Acciones</th>
+                    <th className="px-3 py-3">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,7 +469,7 @@ export default function Admin() {
                               .join(" · ") || "Sin telemetría"}
                           </div>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 text-center">
                           <span
                             className={`${badgeBase} ${
                               isWhitelisted
@@ -437,7 +480,7 @@ export default function Admin() {
                             {isWhitelisted ? "Aprobado" : "Pendiente"}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 text-center">
                           <span
                             className={`${badgeBase} ${
                               role === "admin"
@@ -448,7 +491,7 @@ export default function Admin() {
                             {role}
                           </span>
                         </td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-4 text-center">
                           <span
                             className={`${badgeBase} ${
                               status === "blocked"
@@ -463,48 +506,123 @@ export default function Admin() {
                           {formatDate(user?._lastSession)}
                         </td>
                         <td className="px-3 py-4">
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="flex flex-wrap justify-between">
                             <button
-                              className={`${actionButtonClass} border border-red-700 text-white hover:border-emerald-400 hover:text-emerald-200 disabled:opacity-50`}
+                              className={`${iconButtonClass} border border-red-700 text-white hover:border-emerald-400 hover:text-emerald-200 disabled:opacity-50`}
                               disabled={actionLoading[`${userId}-whitelist`]}
                               onClick={() => handleToggleWhitelist(user)}
+                              title={isWhitelisted ? `Desaprobar` : `Aprobar`}
                             >
                               {actionLoading[`${userId}-whitelist`]
                                 ? "..."
                                 : isWhitelisted
-                                ? "Desaprobar"
-                                : "Aprobar"}
+                                ? (
+                                  <svg 
+                                    className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true">
+                                      <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+                                      <path d="M14 2v5a1 1 0 0 0 1 1h5"/>
+                                      <path d="m14.5 12.5-5 5"/>
+                                      <path d="m9.5 12.5 5 5"/>
+                                  </svg>
+                                )
+                                : (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="m9 15 2 2 4-4"/></svg>
+                                )
+                              }
                             </button>
                             <button
-                              className={`${actionButtonClass} border border-red-700 text-white hover:border-amber-400 hover:text-amber-200 disabled:opacity-50`}
+                              className={`${iconButtonClass} border border-red-700 text-white hover:border-amber-400 hover:text-amber-200 disabled:opacity-50`}
                               disabled={actionLoading[`${userId}-status`]}
                               onClick={() => handleToggleStatus(user)}
+                              title={status === "active" ? `Bloquear` : `Desbloquear`}
                             >
                               {actionLoading[`${userId}-status`]
                                 ? "..."
                                 : status === "active"
-                                ? "Bloquear"
-                                : "Desbloquear"}
+                                ? (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>
+                                )
+                                : (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><circle cx="12" cy="16" r="1"/><rect width="18" height="12" x="3" y="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 9.33-2.5"/></svg>
+                                )}
                             </button>
                             <button
-                              className={`${actionButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:opacity-50`}
+                              className={`${iconButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:opacity-50`}
                               disabled={actionLoading[`${userId}-role`]}
                               onClick={() => handleToggleRole(user)}
+                              title={role === "admin" ? `Quitar Admin` : `Hacer Admin`}
                             >
                               {actionLoading[`${userId}-role`]
                                 ? "..."
                                 : role === "admin"
-                                ? "Quitar admin"
-                                : "Hacer admin"}
+                                ? (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m14.5 9.5-5 5"/><path d="m9.5 9.5 5 5"/></svg>
+                                )
+                                : (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>
+                                )}
                             </button>
                             <button
-                              className={`${actionButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200 disabled:opacity-50`}
+                              className={`${iconButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200 disabled:opacity-50`}
                               disabled={actionLoading[`${userId}-session`]}
                               onClick={() => handleCloseSession(user)}
+                              title="Cerrar sesión"
                             >
                               {actionLoading[`${userId}-session`]
                                 ? "..."
-                                : "Cerrar sesión"}
+                                : (
+                                  <svg className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    aria-hidden="true"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+                                )
+                                }
                             </button>
                           </div>
                         </td>
@@ -529,11 +647,21 @@ export default function Admin() {
             </div>
           </div>
 
-          {recentRuns.length === 0 ? (
+          {loading && (
+            <div className="mt-6 text-sm text-white/70">Cargando datos...</div>
+          )}
+
+          {!loading && error && (
+            <div className="mt-6 text-sm text-rose-200">{error}</div>
+          )}
+
+          {!loading && !error && groupedRuns.length === 0 && (
             <div className="mt-6 text-sm text-white/70">
               No hay ejecuciones para mostrar.
             </div>
-          ) : (
+          )}
+
+          {!loading && !error && groupedRuns.length > 0 && (
             <div className="mt-6 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-white/70">
@@ -543,36 +671,138 @@ export default function Admin() {
                     <th className="px-3 py-3">Fin</th>
                     <th className="px-3 py-3">Estado</th>
                     <th className="px-3 py-3">Error</th>
+                    <th className="px-3 py-3 text-right">Detalle</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentRuns.map((run) => (
-                    <tr key={run.id} className="border-b border-red-900/60">
-                      <td className="px-3 py-4">{run._email}</td>
-                      <td className="px-3 py-4 text-white/80">
-                        {formatDate(run.start_time)}
-                      </td>
-                      <td className="px-3 py-4 text-white/80">
-                        {formatDate(run.end_time)}
-                      </td>
-                      <td className="px-3 py-4">
-                        <span
-                          className={`${badgeBase} ${
-                            run.status === "success"
-                              ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
-                              : run.status === "error"
-                              ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
-                              : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
-                          }`}
-                        >
-                          {run.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4 text-white/70">
-                        {run.error ? String(run.error).slice(0, 120) : "-"}
-                      </td>
-                    </tr>
-                  ))}
+                  {groupedRuns.map((group) => {
+                    const run = group.primary;
+                    const expanded = !!expandedUsers[group.userId];
+                    return (
+                      <Fragment key={group.userId}>
+                        <tr key={run.id} className="border-b border-red-900/60">
+                          <td className="px-3 py-4">
+                            <div className="font-medium text-white">
+                              {group.email}
+                            </div>
+                            <div className="mt-1 text-xs text-white/60">
+                              {group.total} ejecuciones
+                            </div>
+                          </td>
+                          <td className="px-3 py-4 text-white/80">
+                            {formatDate(run.start_time)}
+                          </td>
+                          <td className="px-3 py-4 text-white/80">
+                            {formatDate(run.end_time)}
+                          </td>
+                          <td className="px-3 py-4">
+                            <span
+                              className={`${badgeBase} ${
+                                run.status === "success"
+                                  ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
+                                  : run.status === "error"
+                                  ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
+                                  : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
+                              }`}
+                            >
+                              {run.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-white/70">
+                            {run.error ? String(run.error).slice(0, 120) : "-"}
+                          </td>
+                          <td className="px-3 py-4 text-right">
+                            {group.rest.length > 0 ? (
+                              <button
+                                className={`${iconButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200`}
+                                onClick={() => toggleUserRuns(group.userId)}
+                                title={expanded ? "Ocultar" : "Ver historial"}
+                              >
+                                {expanded ? (
+                                  <svg
+                                    className="h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="m18 15-6-6-6 6" />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    className="h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="m6 9 6 6 6-6" />
+                                  </svg>
+                                )}
+                              </button>
+                            ) : (
+                              <span className="text-xs text-white/50">-</span>
+                            )}
+                          </td>
+                        </tr>
+                        <tr className="border-b border-red-900/40 bg-red-950/30">
+                          <td colSpan={6} className="px-3 py-0">
+                            <div
+                              className={`overflow-hidden transition-all duration-300 ease-out ${
+                                expanded ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
+                              }`}
+                            >
+                              <table className="min-w-full text-left text-sm">
+                                <tbody>
+                                  {group.rest.map((item) => (
+                                    <tr
+                                      key={item.id}
+                                      className="border-b border-red-900/40"
+                                    >
+                                      <td className="px-3 py-3 text-white/70">
+                                        {group.email}
+                                      </td>
+                                      <td className="px-3 py-3 text-white/70">
+                                        {formatDate(item.start_time)}
+                                      </td>
+                                      <td className="px-3 py-3 text-white/70">
+                                        {formatDate(item.end_time)}
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        <span
+                                          className={`${badgeBase} ${
+                                            item.status === "success"
+                                              ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
+                                              : item.status === "error"
+                                              ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
+                                              : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
+                                          }`}
+                                        >
+                                          {item.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-3 text-white/70">
+                                        {item.error ? String(item.error).slice(0, 120) : "-"}
+                                      </td>
+                                      <td className="px-3 py-3 text-right text-white/40">
+                                        &nbsp;
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
