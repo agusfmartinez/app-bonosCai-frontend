@@ -53,6 +53,9 @@ function mergeUsersWithSessions(users = [], sessions = []) {
       ...user,
       _userId: userId,
       _lastSession: sessionInfo ? sessionInfo.dateValue : null,
+      _appVersion: sessionInfo?.session?.app_version || null,
+      _deviceName: sessionInfo?.session?.device_name || null,
+      _os: sessionInfo?.session?.os || null,
     };
   });
 }
@@ -65,6 +68,8 @@ export default function Admin() {
   const [notice, setNotice] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState({});
+  const [runs, setRuns] = useState([]);
+
   const navigate = useNavigate();
 
   const mergedUsers = useMemo(
@@ -93,9 +98,10 @@ export default function Admin() {
     setLoading(true);
     setError("");
     try {
-      const [usersRes, sessionsRes] = await Promise.all([
+      const [usersRes, sessionsRes, runsRes] = await Promise.all([
         fetchWithAuth("/api/admin/users"),
         fetchWithAuth("/api/admin/sessions"),
+        fetchWithAuth("/api/admin/runs"),
       ]);
 
       const usersParsed = await parseApiResponse(usersRes);
@@ -114,6 +120,14 @@ export default function Admin() {
         );
       }
 
+      const runsParsed = await parseApiResponse(runsRes);
+      if (await handleAuthStatus(runsParsed.status)) return;
+      if (!runsParsed.ok) {
+        throw new Error(
+          runsParsed.data?.msg || `Runs: ${runsParsed.status}`
+        );
+      }
+
       setUsers(
         Array.isArray(usersParsed.data)
           ? usersParsed.data
@@ -123,6 +137,11 @@ export default function Admin() {
         Array.isArray(sessionsParsed.data)
           ? sessionsParsed.data
           : sessionsParsed.data?.sessions || []
+      );
+      setRuns(
+        Array.isArray(runsParsed.data)
+          ? runsParsed.data
+          : runsParsed.data?.runs || []
       );
     } catch (err) {
       setError(
@@ -275,6 +294,23 @@ export default function Admin() {
     }
   };
 
+  const userEmailMap = useMemo(() => {
+    const map = new Map();
+    users.forEach((user) => {
+      const userId = user?.user_id || user?.id;
+      if (!userId) return;
+      map.set(userId, user?.email || userId);
+    });
+    return map;
+  }, [users]);
+
+  const recentRuns = useMemo(() => {
+    return runs.map((run) => ({
+      ...run,
+      _email: userEmailMap.get(run.user_id) || run.user_id,
+    }));
+  }, [runs, userEmailMap]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-800 via-red-900 to-red-950 text-white">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-12 lg:px-10">
@@ -378,7 +414,18 @@ export default function Admin() {
                         key={userId || user?.email}
                         className="border-b border-red-900/60"
                       >
-                        <td className="px-3 py-4">{user?.email || "-"}</td>
+                        <td className="px-3 py-4">
+                          <div className="font-medium text-white">{user?.email || "-"}</div>
+                          <div className="mt-1 text-xs text-white/60">
+                            {[
+                              user?._appVersion ? `v${user._appVersion}` : null,
+                              user?._deviceName || null,
+                              user?._os || null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "Sin telemetría"}
+                          </div>
+                        </td>
                         <td className="px-3 py-4">
                           <span
                             className={`${badgeBase} ${
@@ -464,6 +511,68 @@ export default function Admin() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className={cardClass}>
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">
+                Últimas ejecuciones
+              </h2>
+              <p className="mt-1 text-sm text-white/80">
+                Historial reciente de runs del runner.
+              </p>
+            </div>
+          </div>
+
+          {recentRuns.length === 0 ? (
+            <div className="mt-6 text-sm text-white/70">
+              No hay ejecuciones para mostrar.
+            </div>
+          ) : (
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-xs uppercase tracking-wide text-white/70">
+                  <tr className="border-b border-red-800/70">
+                    <th className="px-3 py-3">Usuario</th>
+                    <th className="px-3 py-3">Inicio</th>
+                    <th className="px-3 py-3">Fin</th>
+                    <th className="px-3 py-3">Estado</th>
+                    <th className="px-3 py-3">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentRuns.map((run) => (
+                    <tr key={run.id} className="border-b border-red-900/60">
+                      <td className="px-3 py-4">{run._email}</td>
+                      <td className="px-3 py-4 text-white/80">
+                        {formatDate(run.start_time)}
+                      </td>
+                      <td className="px-3 py-4 text-white/80">
+                        {formatDate(run.end_time)}
+                      </td>
+                      <td className="px-3 py-4">
+                        <span
+                          className={`${badgeBase} ${
+                            run.status === "success"
+                              ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
+                              : run.status === "error"
+                              ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
+                              : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
+                          }`}
+                        >
+                          {run.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 text-white/70">
+                        {run.error ? String(run.error).slice(0, 120) : "-"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
