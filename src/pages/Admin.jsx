@@ -663,15 +663,25 @@ export default function Admin() {
 
           {!loading && !error && groupedRuns.length > 0 && (
             <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
+              <table className="min-w-full table-fixed text-left text-sm">
+                <colgroup>
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "4%" }} />
+                </colgroup>
                 <thead className="text-xs uppercase tracking-wide text-white/70">
                   <tr className="border-b border-red-800/70">
-                    <th className="px-3 py-3">Usuario</th>
-                    <th className="px-3 py-3">Inicio</th>
-                    <th className="px-3 py-3">Fin</th>
-                    <th className="px-3 py-3">Estado</th>
-                    <th className="px-3 py-3">Error</th>
-                    <th className="px-3 py-3 text-right">Detalle</th>
+                    <th className="px-3 py-3 w-[22%]">Usuario</th>
+                    <th className="px-3 py-3 w-[14%]">Inicio</th>
+                    <th className="px-3 py-3 w-[14%]">Fin</th>
+                    <th className="px-3 py-3 w-[12%]">Estado</th>
+                    <th className="px-3 py-3 w-[20%]">Error</th>
+                    <th className="px-3 py-3 w-[14%]">Run ID</th>
+                    <th className="px-3 py-3 w-[4%] text-right">Detalle</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -710,6 +720,9 @@ export default function Admin() {
                           </td>
                           <td className="px-3 py-4 text-white/70">
                             {run.error ? String(run.error).slice(0, 120) : "-"}
+                          </td>
+                          <td className="px-3 py-4 text-white/80 truncate">
+                            {run.client_run_id || "-"}
                           </td>
                           <td className="px-3 py-4 text-right">
                             {group.rest.length > 0 ? (
@@ -751,55 +764,42 @@ export default function Admin() {
                             )}
                           </td>
                         </tr>
-                        <tr className="border-b border-red-900/40 bg-red-950/30">
-                          <td colSpan={6} className="px-3 py-0">
-                            <div
-                              className={`overflow-hidden transition-all duration-300 ease-out ${
-                                expanded ? "max-h-[520px] opacity-100" : "max-h-0 opacity-0"
-                              }`}
-                            >
-                              <table className="min-w-full text-left text-sm">
-                                <tbody>
-                                  {group.rest.map((item) => (
-                                    <tr
-                                      key={item.id}
-                                      className="border-b border-red-900/40"
-                                    >
-                                      <td className="px-3 py-3 text-white/70">
-                                        {group.email}
-                                      </td>
-                                      <td className="px-3 py-3 text-white/70">
-                                        {formatDate(item.start_time)}
-                                      </td>
-                                      <td className="px-3 py-3 text-white/70">
-                                        {formatDate(item.end_time)}
-                                      </td>
-                                      <td className="px-3 py-3">
-                                        <span
-                                          className={`${badgeBase} ${
-                                            item.status === "success"
-                                              ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
-                                              : item.status === "error"
-                                              ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
-                                              : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
-                                          }`}
-                                        >
-                                          {item.status}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-3 text-white/70">
-                                        {item.error ? String(item.error).slice(0, 120) : "-"}
-                                      </td>
-                                      <td className="px-3 py-3 text-right text-white/40">
-                                        &nbsp;
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
+                        {expanded && group.rest.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="border-b border-red-900/40 bg-red-950/30 text-sm"
+                          >
+                            <td className="px-3 py-3 text-white/70">
+                              {group.email}
+                            </td>
+                            <td className="px-3 py-3 text-white/70">
+                              {formatDate(item.start_time)}
+                            </td>
+                            <td className="px-3 py-3 text-white/70">
+                              {formatDate(item.end_time)}
+                            </td>
+                            <td className="px-3 py-3">
+                              <span
+                                className={`${badgeBase} ${
+                                  item.status === "success"
+                                    ? "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/30"
+                                    : item.status === "error"
+                                    ? "bg-rose-500/15 text-rose-200 ring-1 ring-rose-500/30"
+                                    : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30"
+                                }`}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-white/70">
+                              {item.error ? String(item.error).slice(0, 120) : "-"}
+                            </td>
+                            <td className="px-3 py-3 text-white/70">
+                              {item.client_run_id || "-"}
+                            </td>
+                            <td className="px-3 py-3 text-right text-white/40">&nbsp;</td>
+                          </tr>
+                        ))}
                       </Fragment>
                     );
                   })}
