@@ -266,6 +266,35 @@ export default function Admin() {
     }
   };
 
+  const handleToggleChannel = async (user) => {
+    const userId = user?._userId;
+    if (!userId) return;
+    const next = user.channel === "beta" ? "stable" : "beta";
+    const key = `${userId}-channel`;
+    setActionBusy(key, true);
+    setNotice("");
+    setActionError("");
+    try {
+      const res = await fetchWithAuth(`/api/admin/users/${userId}/channel`, {
+        method: "PATCH",
+        body: JSON.stringify({ channel: next }),
+      });
+      const parsed = await parseApiResponse(res);
+      if (await handleAuthStatus(parsed.status)) return;
+      if (!parsed.ok) {
+        throw new Error(parsed.data?.msg || `HTTP ${parsed.status}`);
+      }
+      updateUserLocal(userId, { role: next });
+      setNotice(`Canal actualizado a ${next}.`);
+    } catch (err) {
+      setActionError(
+        `No se pudo actualizar el canal: ${err?.message || "error desconocido"}`
+      );
+    } finally {
+      setActionBusy(key, false);
+    }
+  };
+
   const handleCloseSession = async (user) => {
     const userId = user?._userId;
     if (!userId) return;
@@ -441,6 +470,7 @@ export default function Admin() {
                     <th className="px-3 py-3 text-center">Whitelist</th>
                     <th className="px-3 py-3 text-center">Role</th>
                     <th className="px-3 py-3 text-center">Status</th>
+                    <th className="px-3 py-3 text-center">Canal</th>
                     <th className="px-3 py-3">Última sesión</th>
                     <th className="px-3 py-3">Acciones</th>
                   </tr>
@@ -451,6 +481,7 @@ export default function Admin() {
                     const isWhitelisted = !!user?.is_whitelisted;
                     const role = user?.role || "user";
                     const status = user?.status || "active";
+                    const channel = user?.channel || "stable";
 
                     return (
                       <tr
@@ -500,6 +531,17 @@ export default function Admin() {
                             }`}
                           >
                             {status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-4 text-center">
+                          <span
+                            className={`${badgeBase} ${
+                              role === "beta"
+                                ? "bg-sky-500/15 text-sky-200 ring-1 ring-sky-500/30"
+                                : "bg-slate-500/20 text-slate-200 ring-1 ring-slate-500/30"
+                            }`}
+                          >
+                            {channel}
                           </span>
                         </td>
                         <td className="px-3 py-4 text-white/80">
@@ -602,6 +644,36 @@ export default function Admin() {
                                     strokeLinecap="round" 
                                     strokeLinejoin="round" 
                                     aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>
+                                )}
+                            </button>
+                            <button
+                              className={`${iconButtonClass} border border-red-700 text-white hover:border-sky-400 hover:text-sky-200 disabled:opacity-50`}
+                              disabled={actionLoading[`${userId}-channel`]}
+                              onClick={() => handleToggleChannel(user)}
+                              title={channel === "beta" ? `Quitar usuario Beta` : `Agregar usuario a Beta`}
+                            >
+                              {actionLoading[`${userId}-channel`]
+                                ? "..."
+                                : channel === "beta"
+                                ? (
+                                  <svg 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
+                                )
+                                : (
+                                  <svg width="16" height="16" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"><path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                                 )}
                             </button>
                             <button
