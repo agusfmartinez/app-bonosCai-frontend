@@ -408,15 +408,6 @@ export default function Admin() {
                 {loading ? "Actualizando..." : "Refrescar"}
               </span>
             </button>
-            <button
-              className={`${baseButtonClass} border border-red-700 text-white hover:border-rose-400 hover:text-rose-200`}
-              onClick={async () => {
-                await forceLogout();
-                navigate("/login", { replace: true });
-              }}
-            >
-              Cerrar sesión
-            </button>
           </div>
         </header>
 

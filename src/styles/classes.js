@@ -29,5 +29,5 @@ export const stopButtonClass =
   `inline-flex items-center justify-center rounded-lg border border-rose-400/60 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:border-rose-300 hover:text-rose-100 disabled:cursor-not-allowed disabled:opacity-50 ${focusClass}`
 
 // Page-level helpers
-export const pageContainerClass = 'min-h-screen flex items-center justify-center bg-red-900'
+export const pageContainerClass = 'min-h-screen flex items-center justify-center bg-gradient-to-b from-red-800 via-red-900 to-red-950'
 export const pageCardNarrowClass = `${cardClass} w-[360px]`
