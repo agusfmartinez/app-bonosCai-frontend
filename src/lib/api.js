@@ -1,4 +1,6 @@
 // src/lib/api.js
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export function fetchWithAuth(path, options = {}) {
   const token = localStorage.getItem('bp_token')
   const headers = {
@@ -7,7 +9,8 @@ export function fetchWithAuth(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     'x-client': 'web',
   }
-  return fetch(path, { ...options, headers })
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
+  return fetch(url, { ...options, headers })
 }
 
 export async function parseApiResponse(response) {
